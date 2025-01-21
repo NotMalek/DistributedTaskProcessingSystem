@@ -23,15 +23,33 @@ type Config struct {
 	RedisURL    string
 	WorkerCount int
 	Monitor     bool
+	// New configuration options
+	Priority   int
+	Deadline   string
+	MaxRetries int
+	StealWork  bool
+	MinWorkers int
+	MaxWorkers int
 }
 
 func parseFlags() *Config {
 	cfg := &Config{}
+
+	// Existing flags
 	flag.StringVar(&cfg.Command, "command", "", "Command to execute (run/submit)")
 	flag.StringVar(&cfg.Role, "role", "", "Service role (coordinator/worker)")
 	flag.StringVar(&cfg.RedisURL, "redis", "localhost:6379", "Redis connection URL")
 	flag.IntVar(&cfg.WorkerCount, "workers", 5, "Number of worker goroutines")
 	flag.BoolVar(&cfg.Monitor, "monitor", false, "Monitor task progress after submission")
+
+	// New flags
+	flag.IntVar(&cfg.Priority, "priority", 1, "Task priority (1-10)")
+	flag.StringVar(&cfg.Deadline, "deadline", "", "Task deadline (RFC3339 format)")
+	flag.IntVar(&cfg.MaxRetries, "retries", 3, "Maximum retry attempts")
+	flag.BoolVar(&cfg.StealWork, "steal", false, "Enable work stealing")
+	flag.IntVar(&cfg.MinWorkers, "min", 1, "Minimum workers for auto-scaling")
+	flag.IntVar(&cfg.MaxWorkers, "max", 10, "Maximum workers for auto-scaling")
+
 	flag.Parse()
 
 	if cfg.Command == "" {
@@ -40,6 +58,12 @@ func parseFlags() *Config {
 	if cfg.Command == "run" && cfg.Role == "" {
 		log.Fatal("Role must be specified for run command")
 	}
+
+	// Validate priority range
+	if cfg.Priority < 1 || cfg.Priority > 10 {
+		log.Fatal("Priority must be between 1 and 10")
+	}
+
 	return cfg
 }
 
@@ -88,7 +112,7 @@ func runCoordinator(ctx context.Context, cfg *Config, logger *log.Logger) {
 }
 
 func runWorker(ctx context.Context, cfg *Config, logger *log.Logger) {
-	w := worker.New(
+	w := worker.NewWorker( // Changed from New to NewWorker
 		worker.WithLogger(logger),
 		worker.WithRedis(cfg.RedisURL),
 		worker.WithPoolSize(cfg.WorkerCount),
@@ -104,19 +128,33 @@ func submitAndMonitor(cfg *Config) {
 	defer rdb.Close()
 
 	newTask := task.NewTask("test", []byte("hello world"))
-	newTask.ComplexityScore = 2
+	newTask.Priority = cfg.Priority
+
+	if cfg.Deadline != "" {
+		deadline, err := time.Parse(time.RFC3339, cfg.Deadline)
+		if err != nil {
+			log.Fatalf("Invalid deadline format: %v", err)
+		}
+		newTask.Deadline = &deadline
+	}
+
+	newTask.MaxRetries = cfg.MaxRetries
 
 	taskBytes, err := json.Marshal(newTask)
 	if err != nil {
 		log.Fatalf("Failed to marshal task: %v", err)
 	}
 
-	err = rdb.RPush(context.Background(), "tasks", taskBytes).Err()
+	queueKey := fmt.Sprintf("tasks:priority:%d", newTask.Priority)
+	err = rdb.ZAdd(context.Background(), queueKey, &redis.Z{
+		Score:  float64(time.Now().Unix()),
+		Member: taskBytes,
+	}).Err()
 	if err != nil {
 		log.Fatalf("Failed to submit task: %v", err)
 	}
 
-	fmt.Printf("Successfully submitted task: %s\n", newTask.ID)
+	fmt.Printf("Successfully submitted task: %s with priority %d\n", newTask.ID, newTask.Priority)
 
 	if !cfg.Monitor {
 		return

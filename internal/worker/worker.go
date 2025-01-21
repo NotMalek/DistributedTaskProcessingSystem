@@ -6,12 +6,22 @@ import (
 	"fmt"
 	"log"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/NotMalek/DistributedTaskProcessingSystem/internal/task"
 	"github.com/go-redis/redis/v8"
 	"github.com/google/uuid"
 )
+
+type WorkerMetrics struct {
+	TasksProcessed uint64
+	QueueLength    int64
+	ActiveWorkers  int32
+	IdleWorkers    int32
+	CPUUsage       float64
+	MemoryUsage    uint64
+}
 
 type Worker struct {
 	id       string
@@ -20,6 +30,7 @@ type Worker struct {
 	poolSize int
 	tasks    chan *task.Task
 	results  chan *task.Result
+	metrics  *WorkerMetrics
 	wg       sync.WaitGroup
 	shutdown chan struct{}
 }
@@ -46,12 +57,13 @@ func WithPoolSize(size int) Option {
 	}
 }
 
-func New(opts ...Option) *Worker {
+func NewWorker(opts ...Option) *Worker {
 	w := &Worker{
 		id:       uuid.New().String(),
 		poolSize: 1,
 		tasks:    make(chan *task.Task, 100),
 		results:  make(chan *task.Result, 100),
+		metrics:  &WorkerMetrics{},
 		shutdown: make(chan struct{}),
 	}
 
@@ -136,14 +148,16 @@ func (w *Worker) checkForWork(ctx context.Context) {
 				continue
 			}
 
+			atomic.StoreInt64(&w.metrics.QueueLength, int64(len(tasks)))
+
 			for taskID, taskStr := range tasks {
-				var task task.Task
-				if err := json.Unmarshal([]byte(taskStr), &task); err != nil {
+				var t task.Task
+				if err := json.Unmarshal([]byte(taskStr), &t); err != nil {
 					continue
 				}
 
 				select {
-				case w.tasks <- &task:
+				case w.tasks <- &t:
 					w.redis.HDel(ctx, fmt.Sprintf("worker:%s:tasks", w.id), taskID)
 				default:
 				}
@@ -162,15 +176,22 @@ func (w *Worker) processTask(ctx context.Context) {
 		case <-w.shutdown:
 			return
 		case t := <-w.tasks:
+			atomic.AddInt32(&w.metrics.IdleWorkers, -1)
+
 			result := &task.Result{
 				TaskID:    t.ID,
 				StartTime: time.Now(),
+				WorkerID:  w.id,
 			}
 
+			// Simulate work
 			time.Sleep(time.Duration(t.ComplexityScore) * time.Second)
 
 			result.EndTime = time.Now()
 			result.Status = task.StatusCompleted
+
+			atomic.AddUint64(&w.metrics.TasksProcessed, 1)
+			atomic.AddInt32(&w.metrics.IdleWorkers, 1)
 
 			select {
 			case w.results <- result:
@@ -204,4 +225,8 @@ func (w *Worker) submitResults(ctx context.Context) {
 			}
 		}
 	}
+}
+
+func (w *Worker) GetMetrics() *WorkerMetrics {
+	return w.metrics
 }

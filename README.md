@@ -1,14 +1,32 @@
 # Distributed Task Processing System
 
-A scalable distributed task processing system built in Go, featuring a coordinator-worker architecture with Redis-based task distribution.
+A sophisticated distributed task processing system built in Go, featuring auto-scaling workers, work stealing, priority-based scheduling, and comprehensive monitoring capabilities.
 
 ## Features
 
-- **Distributed Architecture**: Coordinator-worker pattern for scalable task processing
-- **Redis Backend**: Reliable task queue and result storage using Redis
-- **Graceful Shutdown**: Clean shutdown with proper cleanup
-- **Configurable Workers**: Adjustable worker pool size for performance tuning
-- **Health Monitoring**: Worker heartbeat monitoring and automatic task reassignment
+- **Advanced Worker Management**
+    - Auto-scaling worker pools
+    - Work stealing between workers
+    - Health monitoring and heartbeats
+    - Graceful shutdown handling
+
+- **Intelligent Task Processing**
+    - Priority-based task scheduling
+    - Task dependencies support
+    - Retry mechanism with backoff
+    - Deadlines and timeouts
+
+- **Observability**
+    - OpenTelemetry integration
+    - Real-time metrics collection
+    - Web-based monitoring dashboard
+    - Distributed tracing
+
+- **Robust Architecture**
+    - Redis-backed task distribution
+    - Configurable via YAML and environment
+    - Clean separation of concerns
+    - Production-ready error handling
 
 ## Architecture
 
@@ -48,42 +66,74 @@ go mod tidy
 go build
 ```
 
-## Usage
+## Running the System
 
 The system supports three main commands:
 
-### 1. Start Redis (Required First)
+### 1. Start Redis
 ```bash
 redis-server
 ```
 
-### 2. Run Coordinator
+### 2. Start Coordinator
 ```bash
+# Basic start
 go run main.go -command run -role coordinator -redis localhost:6379
+
+# With monitoring dashboard
+go run main.go -command run -role coordinator -redis localhost:6379 -monitor
 ```
 
-### 3. Run Worker
+### 3. Start Workers
 ```bash
+# Start a worker with default settings
+go run main.go -command run -role worker -redis localhost:6379
+
+# Start a worker with custom pool size
 go run main.go -command run -role worker -redis localhost:6379 -workers 5
+
+# Start a worker with work stealing enabled
+go run main.go -command run -role worker -redis localhost:6379 -steal
 ```
 
 ### 4. Submit Tasks
 ```bash
-# Submit a single test task
+# Submit a simple task
 go run main.go -command submit -redis localhost:6379
 
-# Submit and monitor tasks
+# Submit with monitoring
 go run main.go -command submit -redis localhost:6379 -monitor
+
+# Submit a high-priority task
+go run main.go -command submit -redis localhost:6379 -priority 10
+
+# Submit task with deadline
+go run main.go -command submit -redis localhost:6379 -deadline "2024-01-22T15:04:05Z"
 ```
 
 ## Configuration
 
-Command-line flags:
-- `-command`: Required. One of "run" or "submit"
-- `-role`: Required for "run" command. Either "coordinator" or "worker"
-- `-redis`: Redis connection URL (default: "localhost:6379")
-- `-workers`: Number of worker goroutines (default: 5)
-- `-monitor`: For submit command, monitors task progress (default: false)
+### Command Line Flags
+
+### Global Flags:
+
+- **`-command`**: Required. `"run"` or `"submit"`
+- **`-redis`**: Redis URL (default: `localhost:6379`)
+- **`-monitor`**: Enable monitoring (default: `false`)
+
+### Run Command Flags:
+
+- **`-role`**: Required. `"coordinator"` or `"worker"`
+- **`-workers`**: Worker pool size (default: `5`)
+- **`-steal`**: Enable work stealing (default: `false`)
+- **`-min`**: Minimum workers for auto-scaling (default: `1`)
+- **`-max`**: Maximum workers for auto-scaling (default: `10`)
+
+### Submit Command Flags:
+
+- **`-priority`**: Task priority (1-10, default: `1`)
+- **`-deadline`**: Task deadline (RFC3339 format)
+- **`-retries`**: Maximum retry attempts (default: `3`)
 
 ## System Components
 
@@ -111,14 +161,16 @@ Command-line flags:
 ```
 .
 ├── internal/
-│   ├── coordinator/      # Coordinator implementation
-│   ├── worker/          # Worker implementation
-│   └── task/            # Task definitions
-├── main.go              # Application entry point
-├── go.mod
+│   ├── config/          # Configuration management
+│   ├── coordinator/     # Coordinator implementation
+│   ├── monitoring/      # Monitoring dashboard
+│   ├── task/           # Task definitions and scheduling
+│   ├── telemetry/      # Tracing and metrics
+│   └── worker/         # Worker implementation
+│       ├── autoscaler.go
+│       ├── metrics.go
+│       ├── stealing.go
+│       └── worker.go
+├── main.go
 └── README.md
 ```
-
-## Contributing
-
-Feel free to submit issues, forks, and pull requests.
