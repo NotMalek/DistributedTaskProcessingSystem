@@ -23,26 +23,22 @@ type Config struct {
 	RedisURL    string
 	WorkerCount int
 	Monitor     bool
-	// New configuration options
-	Priority   int
-	Deadline   string
-	MaxRetries int
-	StealWork  bool
-	MinWorkers int
-	MaxWorkers int
+	Priority    int
+	Deadline    string
+	MaxRetries  int
+	StealWork   bool
+	MinWorkers  int
+	MaxWorkers  int
 }
 
 func parseFlags() *Config {
 	cfg := &Config{}
 
-	// Existing flags
 	flag.StringVar(&cfg.Command, "command", "", "Command to execute (run/submit)")
 	flag.StringVar(&cfg.Role, "role", "", "Service role (coordinator/worker)")
 	flag.StringVar(&cfg.RedisURL, "redis", "localhost:6379", "Redis connection URL")
 	flag.IntVar(&cfg.WorkerCount, "workers", 5, "Number of worker goroutines")
 	flag.BoolVar(&cfg.Monitor, "monitor", false, "Monitor task progress after submission")
-
-	// New flags
 	flag.IntVar(&cfg.Priority, "priority", 1, "Task priority (1-10)")
 	flag.StringVar(&cfg.Deadline, "deadline", "", "Task deadline (RFC3339 format)")
 	flag.IntVar(&cfg.MaxRetries, "retries", 3, "Maximum retry attempts")
