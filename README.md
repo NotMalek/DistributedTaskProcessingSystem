@@ -106,21 +106,3 @@ The system exposes Prometheus metrics at `/metrics` including:
 ├── go.sum
 └── README.md
 ```
-
-## Contributing
-
-1. Fork the repository
-2. Create a new branch for your feature
-3. Commit your changes
-4. Push to your branch
-5. Create a Pull Request
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## Acknowledgments
-
-- The Go team for the excellent language and tools
-- Redis for providing a robust message queue
-- Prometheus team for the monitoring solution
