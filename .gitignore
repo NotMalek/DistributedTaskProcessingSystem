@@ -1,0 +1,52 @@
+# Binary files
+*.exe
+DistributedTaskProcessingSystem.exe
+*.dll
+*.so
+*.dylib
+
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Database files
+*.rdb
+dump.rdb
+
+# Debug files
+*.test
+debug
+
+# Output files
+*.out
+*.prof
+*.trace
+
+# Local environment configurations
+.env
+.env.local
+config.local.yaml
+
+# macOS files
+.DS_Store
+
+# Windows files
+Thumbs.db
+
+# Log files
+*.log
+
+# Binary directory
+bin/
+dist/
+
+# Go specific
+*.o
+*.a
+*.iml
+
+# Temp files
+tmp/
+temp/
