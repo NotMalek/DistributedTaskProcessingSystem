@@ -1,34 +1,19 @@
 # Distributed Task Processing System
 
-A high-performance distributed task processing system written in Go, designed to handle large-scale workloads with fault tolerance and monitoring capabilities.
+A scalable distributed task processing system built in Go, featuring a coordinator-worker architecture with Redis-based task distribution and Prometheus metrics monitoring.
 
 ## Features
 
-- **Distributed Architecture**: Coordinator-worker model for scalable task processing
-- **Fault Tolerance**: Automatic task reassignment on worker failures
-- **Real-time Monitoring**: Prometheus metrics for system observability
-- **Redis Backend**: Efficient task queue and result storage
-- **Concurrent Processing**: Multiple worker goroutines for optimal performance
-- **Production-Ready**: Graceful shutdown, configuration, and logging
+- **Distributed Architecture**: Coordinator-worker pattern for scalable task processing
+- **Redis Backend**: Reliable task queue and result storage using Redis
+- **Metric Monitoring**: Prometheus metrics for system monitoring
+- **Graceful Shutdown**: Clean shutdown with proper cleanup
+- **Configurable Workers**: Adjustable worker pool size for performance tuning
+- **Health Monitoring**: Worker heartbeat monitoring and automatic task reassignment
 
-## Architecture
+## Prerequisites
 
-```
-┌─────────────┐     ┌─────────────┐
-│  Coordinator│◄────┤Task Producer│
-└─────┬───────┘     └─────────────┘
-      │
-   Redis Queue
-      │
-      ▼
-┌─────────────┐     ┌─────────────┐
-│   Worker 1  │     │   Worker 2  │
-└─────────────┘     └─────────────┘
-```
-
-## Requirements
-
-- Go 1.16+
+- Go 1.22 or later
 - Redis server
 - Prometheus (optional, for metrics)
 
@@ -36,76 +21,106 @@ A high-performance distributed task processing system written in Go, designed to
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/task-processor
-cd task-processor
+git clone https://github.com/NotMalek/DistributedTaskProcessingSystem.git
+cd DistributedTaskProcessingSystem
 ```
 
 2. Install dependencies:
 ```bash
-go mod download
+go mod tidy
 ```
 
-## Usage
-
-1. Start Redis server:
+3. Build the project:
 ```bash
-redis-server
-```
-
-2. Start the coordinator:
-```bash
-go run main.go -role coordinator -redis localhost:6379
-```
-
-3. Start one or more workers:
-```bash
-go run main.go -role worker -redis localhost:6379 -workers 5
+go build
 ```
 
 ## Configuration
 
 The system can be configured using command-line flags:
 
-- `-role`: Service role (coordinator/worker)
-- `-redis`: Redis connection URL (default: localhost:6379)
-- `-metrics-addr`: Metrics server address (default: :9090)
+- `-role`: Required. Either "coordinator" or "worker"
+- `-redis`: Redis connection URL (default: "localhost:6379")
+- `-metrics-addr`: Metrics server address (default: ":9090")
 - `-workers`: Number of worker goroutines (default: 5)
 
-## Monitoring
+## Running the System
 
-Access Prometheus metrics at:
-```
-http://localhost:9090/metrics
+1. Start a Redis server:
+```bash
+redis-server
 ```
 
-Key metrics include:
-- Task submission/completion rates
-- Processing times
-- Queue lengths
-- Worker pool status
+2. Start the coordinator:
+```bash
+./DistributedTaskProcessingSystem -role coordinator
+```
+
+3. Start one or more workers:
+```bash
+./DistributedTaskProcessingSystem -role worker -workers 5
+```
+
+## Architecture
+
+### Coordinator
+- Manages task distribution
+- Monitors worker health
+- Handles task reassignment for failed workers
+- Collects and aggregates results
+
+### Worker
+- Processes assigned tasks
+- Sends heartbeat signals
+- Reports task completion status
+- Manages local worker pool
+
+### Task Flow
+1. Tasks are submitted to the coordinator
+2. Coordinator queues tasks in Redis
+3. Workers poll for available tasks
+4. Workers process tasks and submit results
+5. Coordinator collects and stores results
+
+## Metrics
+
+The system exposes Prometheus metrics at `/metrics` including:
+- Tasks submitted/assigned/completed
+- Active worker count
+- Processing time
+- Queue time
+- Worker pool size
 
 ## Project Structure
 
 ```
 .
-├── main.go                 # Application entry point
+├── cmd/
+│   └── main.go           # Application entry point
 ├── internal/
-│   ├── coordinator/       # Coordinator service
-│   ├── worker/           # Worker service
+│   ├── coordinator/      # Coordinator implementation
+│   ├── worker/          # Worker implementation
 │   ├── task/            # Task definitions
-│   └── metrics/         # Prometheus metrics
+│   └── metrics/         # Metrics collection
+├── go.mod
+├── go.sum
 └── README.md
 ```
 
-## System Flow
-
-1. Tasks are submitted to the coordinator
-2. Coordinator queues tasks in Redis
-3. Workers poll for available tasks
-4. Tasks are processed concurrently
-5. Results are stored back in Redis
-6. Coordinator monitors worker health and handles failures
-
 ## Contributing
 
-Feel free to submit issues and enhancement requests!
+1. Fork the repository
+2. Create a new branch for your feature
+3. Commit your changes
+4. Push to your branch
+5. Create a Pull Request
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Acknowledgments
+
+- The Go team for the excellent language and tools
+- Redis for providing a robust message queue
+- Prometheus team for the monitoring solution
