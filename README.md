@@ -11,6 +11,21 @@ A scalable distributed task processing system built in Go, featuring a coordinat
 - **Configurable Workers**: Adjustable worker pool size for performance tuning
 - **Health Monitoring**: Worker heartbeat monitoring and automatic task reassignment
 
+## Architecture
+
+```
+┌─────────────┐     ┌─────────────┐
+│  Coordinator│◄────┤Task Producer│
+└─────┬───────┘     └─────────────┘
+      │
+   Redis Queue
+      │
+      ▼
+┌─────────────┐     ┌─────────────┐
+│   Worker 1  │     │   Worker 2  │
+└─────────────┘     └─────────────┘
+```
+
 ## Prerequisites
 
 - Go 1.23 or later
