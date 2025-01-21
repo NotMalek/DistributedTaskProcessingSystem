@@ -13,7 +13,7 @@ A scalable distributed task processing system built in Go, featuring a coordinat
 
 ## Prerequisites
 
-- Go 1.22 or later
+- Go 1.23 or later
 - Redis server
 - Prometheus (optional, for metrics)
 
