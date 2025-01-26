@@ -50,3 +50,6 @@ dist/
 # Temp files
 tmp/
 temp/
+
+#node modules
+frontend/node_modules
