@@ -4,6 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { MetricsCards } from '@/components/dashboard/metrics-cards';
 import { QueueChart } from '@/components/dashboard/queue-chart';
 import { WorkerStatus } from '@/components/dashboard/worker-status';
+import { TaskSubmissionForm } from '@/components/dashboard/task-submission';
+import { SystemManagement } from '@/components/dashboard/system-management';
 
 interface SystemMetrics {
   activeWorkers: number;
@@ -25,23 +27,22 @@ export default function Home() {
   });
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchMetrics = async () => {
-      try {
-        const response = await fetch('http://localhost:8080/api/metrics');
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const data = await response.json();
-        console.log('Received metrics:', data); // Debug log
-        setMetrics(data);
-        setError(null);
-      } catch (error) {
-        console.error('Error fetching metrics:', error);
-        setError('Failed to fetch metrics data');
+  const fetchMetrics = async () => {
+    try {
+      const response = await fetch('http://localhost:8080/api/metrics');
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
-    };
+      const data = await response.json();
+      setMetrics(data);
+      setError(null);
+    } catch (error) {
+      console.error('Error fetching metrics:', error);
+      setError('Failed to fetch metrics data');
+    }
+  };
 
+  useEffect(() => {
     // Initial fetch
     fetchMetrics();
 
@@ -62,16 +63,25 @@ export default function Home() {
             </div>
         )}
 
-        <MetricsCards
-            activeWorkers={metrics.activeWorkers}
-            totalTasks={metrics.totalTasks}
-            processedTasks={metrics.processedTasks}
-            failedTasks={metrics.failedTasks}
-        />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 space-y-6">
+            <MetricsCards
+                activeWorkers={metrics.activeWorkers}
+                totalTasks={metrics.totalTasks}
+                processedTasks={metrics.processedTasks}
+                failedTasks={metrics.failedTasks}
+            />
 
-        <QueueChart queueLengths={metrics.queueLengths} />
+            <QueueChart queueLengths={metrics.queueLengths} />
 
-        <WorkerStatus workers={metrics.workerMetrics} />
+            <WorkerStatus workers={metrics.workerMetrics} />
+          </div>
+
+          <div className="space-y-6">
+            <TaskSubmissionForm onSuccess={fetchMetrics} />
+            <SystemManagement onSystemReset={fetchMetrics} />
+          </div>
+        </div>
       </main>
   );
 }
