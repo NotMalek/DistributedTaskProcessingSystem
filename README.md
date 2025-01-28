@@ -75,40 +75,20 @@ The system supports three main commands:
 redis-server
 ```
 
-### 2. Start Coordinator
+### 2. Start Backend
 ```bash
 # Basic start
-go run main.go -command run -role coordinator -redis localhost:6379
+go run main.go
 
-# With monitoring dashboard
-go run main.go -command run -role coordinator -redis localhost:6379 -monitor
+# With custom Redis and port
+go run main.go -redis localhost:6379 -port 8080
 ```
 
-### 3. Start Workers
+### 3. Start Frontend
 ```bash
-# Start a worker with default settings
-go run main.go -command run -role worker -redis localhost:6379
+cd ./frontend
 
-# Start a worker with custom pool size
-go run main.go -command run -role worker -redis localhost:6379 -workers 5
-
-# Start a worker with work stealing enabled
-go run main.go -command run -role worker -redis localhost:6379 -steal
-```
-
-### 4. Submit Tasks
-```bash
-# Submit a simple task
-go run main.go -command submit -redis localhost:6379
-
-# Submit with monitoring
-go run main.go -command submit -redis localhost:6379 -monitor
-
-# Submit a high-priority task
-go run main.go -command submit -redis localhost:6379 -priority 10
-
-# Submit task with deadline
-go run main.go -command submit -redis localhost:6379 -deadline "2024-01-22T15:04:05Z"
+npm run dev
 ```
 
 ## Configuration
@@ -162,17 +142,14 @@ go run main.go -command submit -redis localhost:6379 -deadline "2024-01-22T15:04
 .
 ├── internal/
 |   ├── api/          # Configuration management
-|       └──server.go
+|   |   └──server.go
 │   ├── config/          # Configuration management
-|       └──config.go
+|   |   └──config.go
 │   ├── coordinator/     # Coordinator implementation
-|       └──coordinator.go
+|   |   └──coordinator.go
 │   ├── task/           # Task definitions and scheduling
-│       ├── scheduler.go
-│       └── task.go
-│   ├── telemetry/      # Tracing and metrics
-│       ├── middleware.go
-│       └── setup.go
+│   |   ├── scheduler.go
+│   |   └── task.go
 │   └── worker/         # Worker implementation
 │       ├── autoscaler.go
 │       ├── metrics.go
