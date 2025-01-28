@@ -161,11 +161,18 @@ go run main.go -command submit -redis localhost:6379 -deadline "2024-01-22T15:04
 ```
 .
 ├── internal/
+|   ├── api/          # Configuration management
+|       └──server.go
 │   ├── config/          # Configuration management
+|       └──config.go
 │   ├── coordinator/     # Coordinator implementation
-│   ├── monitoring/      # Monitoring dashboard
+|       └──coordinator.go
 │   ├── task/           # Task definitions and scheduling
+│       ├── scheduler.go
+│       └── task.go
 │   ├── telemetry/      # Tracing and metrics
+│       ├── middleware.go
+│       └── setup.go
 │   └── worker/         # Worker implementation
 │       ├── autoscaler.go
 │       ├── metrics.go
@@ -174,3 +181,7 @@ go run main.go -command submit -redis localhost:6379 -deadline "2024-01-22T15:04
 ├── main.go
 └── README.md
 ```
+## Dashboard
+
+![image](https://github.com/user-attachments/assets/0c9fd0f2-e135-4338-b111-84ee4db23d0b)
+
