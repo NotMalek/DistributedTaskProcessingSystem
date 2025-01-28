@@ -93,30 +93,6 @@ yarn dev
 
 The dashboard will be available at `http://localhost:3000`
 
-## Configuration
-
-### Command Line Flags
-
-### Global Flags:
-
-- **`-command`**: Required. `"run"` or `"submit"`
-- **`-redis`**: Redis URL (default: `localhost:6379`)
-- **`-monitor`**: Enable monitoring (default: `false`)
-
-### Run Command Flags:
-
-- **`-role`**: Required. `"coordinator"` or `"worker"`
-- **`-workers`**: Worker pool size (default: `5`)
-- **`-steal`**: Enable work stealing (default: `false`)
-- **`-min`**: Minimum workers for auto-scaling (default: `1`)
-- **`-max`**: Maximum workers for auto-scaling (default: `10`)
-
-### Submit Command Flags:
-
-- **`-priority`**: Task priority (1-10, default: `1`)
-- **`-deadline`**: Task deadline (RFC3339 format)
-- **`-retries`**: Maximum retry attempts (default: `3`)
-
 ## API Endpoints
 
 ### Worker Management
