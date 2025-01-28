@@ -169,7 +169,7 @@ POST /api/system/reset
 - Real-time metrics updates
 - Error tracking and reporting
 
-## Project Structure
+## Backend Structure
 
 ```
 .
@@ -191,6 +191,28 @@ POST /api/system/reset
 ├── main.go
 └── README.md
 ```
+
+## Frontend Structure
+```
+frontend/
+├── src/
+│   ├── app/
+│   │   ├── globals.css
+│   │   ├── layout.tsx
+│   │   └── page.tsx
+│   └── components/
+│       ├── ui/
+│       │   └── card.tsx
+│       └── dashboard/
+│           ├── metrics-cards.tsx
+│           ├── queue-chart.tsx
+│           ├── system-management.tsx
+│           ├── task-submission.tsx
+│           └── worker-status.tsx
+├── package.json
+└── tsconfig.json
+```
+
 ## Dashboard
 
 ![image](https://github.com/user-attachments/assets/8f4fcea1-16d9-4e7b-9e34-56261d27ca8f)
