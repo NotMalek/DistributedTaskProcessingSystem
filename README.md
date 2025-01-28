@@ -17,7 +17,6 @@ A sophisticated distributed task processing system built in Go, featuring auto-s
     - Deadlines and timeouts
 
 - **Observability**
-    - OpenTelemetry integration
     - Real-time metrics collection
     - Web-based monitoring dashboard
     - Distributed tracing
