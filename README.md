@@ -3,49 +3,49 @@
 A sophisticated distributed task processing system built in Go, featuring auto-scaling workers, work stealing, priority-based scheduling, and comprehensive monitoring capabilities.
 
 ## Features
-
 - **Advanced Worker Management**
     - Auto-scaling worker pools
     - Work stealing between workers
     - Health monitoring and heartbeats
     - Graceful shutdown handling
-
 - **Intelligent Task Processing**
-    - Priority-based task scheduling
-    - Task dependencies support
-    - Retry mechanism with backoff
-    - Deadlines and timeouts
-
-- **Observability**
-    - Real-time metrics collection
-    - Web-based monitoring dashboard
-    - Distributed tracing
-
+    - Priority-based task scheduling (1-10)
+    - Task deadlines and timeouts
+    - Configurable retry mechanism
+    - Real-time task status updates
+- **Modern Dashboard**
+    - Real-time metrics visualization
+    - Dark mode interface
+    - Interactive worker management
+    - Task submission interface
+    - Priority queue visualization
 - **Robust Architecture**
     - Redis-backed task distribution
-    - Configurable via YAML and environment
-    - Clean separation of concerns
+    - React-based frontend
+    - RESTful API integration
     - Production-ready error handling
 
 ## Architecture
 
 ```
 ┌─────────────┐     ┌─────────────┐
-│  Coordinator│◄────┤Task Producer│
-└─────┬───────┘     └─────────────┘
-      │
-   Redis Queue
-      │
-      ▼
+│   Next.js   │◄────┤    API      │
+│  Frontend   │     │   Server    │
+└─────────────┘     └──────┬──────┘
+                           │
+                      Redis Queue
+                           │
+                           ▼
 ┌─────────────┐     ┌─────────────┐
 │   Worker 1  │     │   Worker 2  │
 └─────────────┘     └─────────────┘
 ```
 
 ## Prerequisites
-
 - Go 1.23 or later
 - Redis server
+- Node.js 18 or later
+- npm/yarn
 
 ## Installation
 
@@ -55,19 +55,20 @@ git clone https://github.com/NotMalek/DistributedTaskProcessingSystem.git
 cd DistributedTaskProcessingSystem
 ```
 
-2. Install dependencies:
+2. Install backend dependencies:
 ```bash
 go mod tidy
 ```
 
-3. Build the project:
+3. Install frontend dependencies:
 ```bash
-go build
+cd frontend
+npm install
+# or
+yarn install
 ```
 
 ## Running the System
-
-The system supports three main commands:
 
 ### 1. Start Redis
 ```bash
@@ -78,17 +79,19 @@ redis-server
 ```bash
 # Basic start
 go run main.go
-
 # With custom Redis and port
 go run main.go -redis localhost:6379 -port 8080
 ```
 
 ### 3. Start Frontend
 ```bash
-cd .\frontend\
-
+cd frontend
 npm run dev
+# or
+yarn dev
 ```
+
+The dashboard will be available at `http://localhost:3000`
 
 ## Configuration
 
@@ -114,26 +117,81 @@ npm run dev
 - **`-deadline`**: Task deadline (RFC3339 format)
 - **`-retries`**: Maximum retry attempts (default: `3`)
 
-## System Components
+## API Endpoints
 
-### Coordinator
-- Manages task distribution
-- Monitors worker health
-- Handles task reassignment for failed workers
-- Collects and aggregates results
+### Worker Management
+```bash
+# Start a new worker
+POST /api/workers/start
+{
+    "poolSize": 5,
+    "enableSteal": true,
+    "minWorkers": 1,
+    "maxWorkers": 10
+}
 
-### Worker
-- Processes assigned tasks
-- Sends heartbeat signals
-- Reports task completion status
-- Manages local worker pool
+# Stop a worker
+POST /api/workers/stop?id={workerId}
 
-### Task Flow
-1. Tasks are submitted via command line
-2. Coordinator queues tasks in Redis
-3. Workers poll for available tasks
-4. Workers process tasks and submit results
-5. Coordinator collects and stores results
+# Get worker list and status
+GET /api/workers
+```
+
+### Task Management
+```bash
+# Submit a new task
+POST /api/tasks/submit
+{
+    "priority": 5,
+    "deadline": "2024-01-30T15:04:05Z",
+    "retries": 3,
+    "taskType": "test",
+    "payload": "task data here"
+}
+
+# Get task status
+GET /api/tasks/status?id={taskId}
+```
+
+### System Management
+```bash
+# Get system metrics
+GET /api/metrics
+
+# Get detailed debug information
+GET /api/debug
+
+# Reset the entire system
+POST /api/system/reset
+```
+
+## Dashboard Features
+
+### Real-time Monitoring
+- Active worker count
+- Total tasks in system
+- Processed tasks count
+- Failed tasks count
+- Priority queue lengths visualization
+
+### Worker Management
+- Add/remove workers
+- Configure worker pool size
+- Enable/disable task stealing
+- Set min/max worker limits
+- Monitor worker status and health
+
+### Task Management
+- Submit new tasks
+- Set task priorities
+- Configure deadlines
+- Specify retry attempts
+- Monitor task status
+
+### System Control
+- Reset system state
+- Real-time metrics updates
+- Error tracking and reporting
 
 ## Project Structure
 
