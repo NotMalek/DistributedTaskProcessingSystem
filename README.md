@@ -160,5 +160,6 @@ npm run dev
 ```
 ## Dashboard
 
-![image](https://github.com/user-attachments/assets/0c9fd0f2-e135-4338-b111-84ee4db23d0b)
+![image](https://github.com/user-attachments/assets/8f4fcea1-16d9-4e7b-9e34-56261d27ca8f)
+
 
