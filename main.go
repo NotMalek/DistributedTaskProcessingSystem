@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"github.com/NotMalek/DistributedTaskProcessingSystem/internal/api"
 	"log"
 	"os"
 	"os/signal"
@@ -97,11 +98,28 @@ func runService(cfg *Config) {
 }
 
 func runCoordinator(ctx context.Context, cfg *Config, logger *log.Logger) {
+	// Initialize Redis client
+	rdb := redis.NewClient(&redis.Options{
+		Addr: cfg.RedisURL,
+	})
+
+	// Create coordinator
 	coord := coordinator.New(
 		coordinator.WithLogger(logger),
 		coordinator.WithRedis(cfg.RedisURL),
 	)
 
+	// Create API server if monitoring is enabled
+	if cfg.Monitor {
+		apiServer := api.NewServer(rdb)
+		go func() {
+			if err := apiServer.Start(":8080"); err != nil {
+				logger.Printf("API server error: %v", err)
+			}
+		}()
+	}
+
+	// Start coordinator
 	if err := coord.Start(ctx); err != nil {
 		logger.Fatalf("Coordinator failed: %v", err)
 	}

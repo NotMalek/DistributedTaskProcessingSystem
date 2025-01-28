@@ -53,3 +53,6 @@ temp/
 
 #node modules
 frontend/node_modules
+
+#.next
+frontend/.next
