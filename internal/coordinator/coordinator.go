@@ -14,9 +14,8 @@ import (
 )
 
 type Coordinator struct {
-	logger *log.Logger
-	redis  *redis.Client
-
+	logger   *log.Logger
+	redis    *redis.Client
 	workers  sync.Map
 	shutdown chan struct{}
 }
@@ -49,7 +48,48 @@ func New(opts ...Option) *Coordinator {
 	return c
 }
 
+func (c *Coordinator) cleanup(ctx context.Context) error {
+	pipe := c.redis.Pipeline()
+
+	// Clear all priority queues
+	for priority := 1; priority <= 10; priority++ {
+		pipe.Del(ctx, fmt.Sprintf("tasks:priority:%d", priority))
+	}
+
+	// Get all workers to clean their data
+	workers, err := c.redis.HGetAll(ctx, "workers").Result()
+	if err != nil {
+		return fmt.Errorf("failed to get workers: %w", err)
+	}
+
+	// Clean up worker data
+	for workerID := range workers {
+		pipe.Del(ctx, fmt.Sprintf("worker:%s:tasks", workerID))
+		pipe.Del(ctx, fmt.Sprintf("worker:%s:results", workerID))
+		pipe.Del(ctx, fmt.Sprintf("worker:%s:processing", workerID))
+	}
+
+	// Clean up global keys
+	pipe.Del(ctx, "workers")
+	pipe.Del(ctx, "results")
+	pipe.Del(ctx, "failed_tasks")
+
+	// Execute pipeline
+	_, err = pipe.Exec(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to execute cleanup: %w", err)
+	}
+
+	c.logger.Printf("System state cleaned up successfully")
+	return nil
+}
+
 func (c *Coordinator) Start(ctx context.Context) error {
+	// Clean up any existing state
+	if err := c.cleanup(ctx); err != nil {
+		c.logger.Printf("Warning: Failed to cleanup system state: %v", err)
+	}
+
 	go c.distributeWork(ctx)
 	go c.collectResults(ctx)
 	go c.monitorWorkers(ctx)
@@ -62,20 +102,6 @@ func (c *Coordinator) Start(ctx context.Context) error {
 	}
 }
 
-func (c *Coordinator) SubmitTask(task *task.Task) error {
-	taskBytes, err := json.Marshal(task)
-	if err != nil {
-		return fmt.Errorf("failed to marshal task: %w", err)
-	}
-
-	err = c.redis.RPush(context.Background(), "tasks", taskBytes).Err()
-	if err != nil {
-		return fmt.Errorf("failed to queue task: %w", err)
-	}
-
-	return nil
-}
-
 func (c *Coordinator) distributeWork(ctx context.Context) {
 	ticker := time.NewTicker(100 * time.Millisecond)
 	defer ticker.Stop()
@@ -85,33 +111,59 @@ func (c *Coordinator) distributeWork(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			result, err := c.redis.LPop(ctx, "tasks").Result()
-			if err == redis.Nil {
-				continue
-			}
-			if err != nil {
-				continue
-			}
-
-			var task task.Task
-			if err := json.Unmarshal([]byte(result), &task); err != nil {
-				continue
-			}
-
-			var workerID string
+			// Get active workers
+			var availableWorkers []string
 			c.workers.Range(func(key, value interface{}) bool {
-				workerID = key.(string)
-				return false
+				workerID := key.(string)
+				availableWorkers = append(availableWorkers, workerID)
+				return true
 			})
 
-			if workerID == "" {
-				c.redis.RPush(ctx, "tasks", result)
+			if len(availableWorkers) == 0 {
 				continue
 			}
 
-			err = c.redis.HSet(ctx, fmt.Sprintf("worker:%s:tasks", workerID), task.ID, result).Err()
-			if err != nil {
-				c.redis.RPush(ctx, "tasks", result)
+			// Try getting tasks from highest to lowest priority
+			for priority := 10; priority > 0; priority-- {
+				queueKey := fmt.Sprintf("tasks:priority:%d", priority)
+
+				// Try to get up to 5 tasks at once
+				result, err := c.redis.ZRange(ctx, queueKey, 0, 4).Result()
+				if err != nil || len(result) == 0 {
+					continue
+				}
+
+				c.logger.Printf("Found %d tasks in priority %d queue", len(result), priority)
+
+				// Process each task
+				for _, taskStr := range result {
+					var currentTask task.Task
+					if err := json.Unmarshal([]byte(taskStr), &currentTask); err != nil {
+						c.logger.Printf("Error unmarshaling task: %v", err)
+						continue
+					}
+
+					// Pick a worker (round-robin)
+					workerID := availableWorkers[0]
+					availableWorkers = append(availableWorkers[1:], availableWorkers[0])
+
+					c.logger.Printf("Assigning task %s to worker %s", currentTask.ID, workerID)
+
+					// Assign task to worker
+					err = c.redis.HSet(ctx,
+						fmt.Sprintf("worker:%s:tasks", workerID),
+						currentTask.ID,
+						taskStr,
+					).Err()
+
+					if err != nil {
+						c.logger.Printf("Failed to assign task to worker: %v", err)
+						continue
+					}
+
+					// Remove task from priority queue
+					c.redis.ZRem(ctx, queueKey, taskStr)
+				}
 			}
 		}
 	}

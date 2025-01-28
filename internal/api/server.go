@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 	"sync"
 	"time"
 
@@ -30,10 +31,8 @@ type SystemMetrics struct {
 type WorkerInfo struct {
 	ID             string    `json:"id"`
 	LastSeen       time.Time `json:"lastSeen"`
-	TasksProcessed uint64    `json:"tasks_processed"`
+	TasksProcessed uint64    `json:"tasksProcessed"`
 	ActiveTasks    int       `json:"activeTasks"`
-	CPUUsage       float64   `json:"cpu_usage"`
-	MemoryUsage    uint64    `json:"memory_usage"`
 	Status         string    `json:"status"`
 }
 
@@ -44,10 +43,59 @@ func NewServer(redis *redis.Client) *Server {
 	}
 }
 
+func (s *Server) handleDebug(w http.ResponseWriter, r *http.Request) {
+	ctx := context.Background()
+	debug := make(map[string]interface{})
+
+	// Get all queue contents
+	for priority := 1; priority <= 10; priority++ {
+		queueKey := fmt.Sprintf("tasks:priority:%d", priority)
+		tasks, err := s.redis.ZRange(ctx, queueKey, 0, -1).Result()
+		if err == nil {
+			debug[fmt.Sprintf("queue_%d", priority)] = tasks
+		}
+	}
+
+	// Get all worker states
+	workers, _ := s.redis.HGetAll(ctx, "workers").Result()
+	workerStates := make(map[string]interface{})
+
+	for workerID := range workers {
+		state := make(map[string]interface{})
+
+		// Get assigned tasks
+		tasks, _ := s.redis.HGetAll(ctx, fmt.Sprintf("worker:%s:tasks", workerID)).Result()
+		state["assigned_tasks"] = tasks
+
+		// Get processing tasks
+		processing, _ := s.redis.HGetAll(ctx, fmt.Sprintf("worker:%s:processing", workerID)).Result()
+		state["processing_tasks"] = processing
+
+		// Get completed tasks
+		completed, _ := s.redis.HGetAll(ctx, fmt.Sprintf("worker:%s:results", workerID)).Result()
+		state["completed_tasks"] = completed
+
+		workerStates[workerID] = state
+	}
+	debug["workers"] = workerStates
+
+	// Get all results
+	results, _ := s.redis.HGetAll(ctx, "results").Result()
+	debug["results"] = results
+
+	// Get all failed tasks
+	failed, _ := s.redis.HGetAll(ctx, "failed_tasks").Result()
+	debug["failed_tasks"] = failed
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(debug)
+}
+
 func (s *Server) Start(addr string) error {
 	mux := http.NewServeMux()
 	mux.Handle("/api/metrics", corsMiddleware(s.handleMetrics))
 	mux.Handle("/api/workers", corsMiddleware(s.handleWorkers))
+	mux.Handle("/api/debug", corsMiddleware(s.handleDebug)) // Add debug endpoint
 
 	go s.collectMetrics()
 
@@ -58,7 +106,7 @@ func (s *Server) Start(addr string) error {
 func corsMiddleware(next http.HandlerFunc) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 		w.Header().Set("Content-Type", "application/json")
 
@@ -78,11 +126,7 @@ func (s *Server) handleMetrics(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := json.NewEncoder(w).Encode(metrics); err != nil {
-		s.logger.Printf("Error encoding metrics: %v\n", err)
-		http.Error(w, "Error encoding metrics", http.StatusInternalServerError)
-		return
-	}
+	json.NewEncoder(w).Encode(metrics)
 }
 
 func (s *Server) handleWorkers(w http.ResponseWriter, r *http.Request) {
@@ -93,11 +137,7 @@ func (s *Server) handleWorkers(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if sysMetrics, ok := metrics.(*SystemMetrics); ok {
-		if err := json.NewEncoder(w).Encode(sysMetrics.WorkerMetrics); err != nil {
-			s.logger.Printf("Error encoding worker metrics: %v\n", err)
-			http.Error(w, "Error encoding worker metrics", http.StatusInternalServerError)
-			return
-		}
+		json.NewEncoder(w).Encode(sysMetrics.WorkerMetrics)
 	}
 }
 
@@ -111,17 +151,19 @@ func (s *Server) collectMetrics() {
 			WorkerMetrics: make(map[string]WorkerInfo),
 		}
 
-		// Collect queue lengths per priority
+		// Collect total tasks in priority queues
+		total := int64(0)
 		for priority := 1; priority <= 10; priority++ {
 			queueKey := fmt.Sprintf("tasks:priority:%d", priority)
 			length, err := s.redis.ZCard(context.Background(), queueKey).Result()
 			if err == nil {
 				metrics.QueueLengths[priority] = length
-				metrics.TotalTasks += length
+				total += length
 			}
 		}
+		metrics.TotalTasks = total
 
-		// Collect processed tasks
+		// Collect all results (completed tasks)
 		processed, _ := s.redis.HLen(context.Background(), "results").Result()
 		metrics.ProcessedTasks = int64(processed)
 
@@ -129,29 +171,55 @@ func (s *Server) collectMetrics() {
 		failed, _ := s.redis.HLen(context.Background(), "failed_tasks").Result()
 		metrics.FailedTasks = int64(failed)
 
-		// Collect worker metrics
+		// Collect active workers and their tasks
 		workers, _ := s.redis.HGetAll(context.Background(), "workers").Result()
 		metrics.ActiveWorkers = len(workers)
 
-		for workerID := range workers {
-			tasks, _ := s.redis.HGetAll(context.Background(), fmt.Sprintf("worker:%s:tasks", workerID)).Result()
+		for workerID, lastSeenStr := range workers {
+			lastSeen, _ := strconv.ParseInt(lastSeenStr, 10, 64)
+
+			// Get tasks currently assigned to this worker
+			assignedTasks, _ := s.redis.HGetAll(context.Background(),
+				fmt.Sprintf("worker:%s:tasks", workerID)).Result()
+
+			// Get tasks being processed by this worker
+			processingTasks, _ := s.redis.HGetAll(context.Background(),
+				fmt.Sprintf("worker:%s:processing", workerID)).Result()
+
+			// Get completed tasks by this worker
+			completedTasks, _ := s.redis.HGetAll(context.Background(),
+				fmt.Sprintf("worker:%s:results", workerID)).Result()
 
 			workerInfo := WorkerInfo{
-				ID:          workerID,
-				LastSeen:    time.Now(),
-				ActiveTasks: len(tasks),
-				Status:      "active",
+				ID:             workerID,
+				LastSeen:       time.Unix(lastSeen, 0),
+				TasksProcessed: uint64(len(completedTasks)),
+				ActiveTasks:    len(assignedTasks) + len(processingTasks),
+				Status:         "active",
 			}
 
-			// Get task processing count
-			processedCount, _ := s.redis.HLen(context.Background(), fmt.Sprintf("worker:%s:results", workerID)).Result()
-			workerInfo.TasksProcessed = uint64(processedCount)
+			// Check if worker is actually active (last seen within 30 seconds)
+			if time.Since(workerInfo.LastSeen) > 30*time.Second {
+				workerInfo.Status = "inactive"
+			}
 
 			metrics.WorkerMetrics[workerID] = workerInfo
 		}
 
 		s.metrics.Store("current", metrics)
-		metricsJSON, _ := json.MarshalIndent(metrics, "", "  ")
-		s.logger.Printf("Current metrics: %s\n", string(metricsJSON))
+
+		// Log current state
+		s.logger.Printf("Current State - Active Workers: %d, Total Tasks: %d, Processed: %d, Failed: %d",
+			metrics.ActiveWorkers,
+			metrics.TotalTasks,
+			metrics.ProcessedTasks,
+			metrics.FailedTasks)
+
+		// Log queue lengths
+		for priority, length := range metrics.QueueLengths {
+			if length > 0 {
+				s.logger.Printf("Priority %d queue length: %d", priority, length)
+			}
+		}
 	}
 }
