@@ -22,6 +22,9 @@ export function WorkerStatus({ workers = {} }: WorkerStatusProps) {
     const [maxWorkers, setMaxWorkers] = useState(10);
     const [error, setError] = useState<string | null>(null);
 
+    const inputClassName = "w-full p-2 rounded-md bg-[#27272a] text-white border border-[#3f3f46] focus:outline-none focus:border-[#ec4899] focus:ring-1 focus:ring-[#ec4899]";
+    const labelClassName = "block text-sm font-medium mb-1 text-gray-200";
+
     const startWorker = async () => {
         try {
             const response = await fetch('http://localhost:8080/api/workers/start', {
@@ -48,155 +51,129 @@ export function WorkerStatus({ workers = {} }: WorkerStatusProps) {
         }
     };
 
-    const stopWorker = async (workerId: string) => {
-        try {
-            const response = await fetch(`http://localhost:8080/api/workers/stop?id=${workerId}`, {
-                method: 'POST',
-            });
-
-            if (!response.ok) {
-                throw new Error('Failed to stop worker');
-            }
-
-            setError(null);
-        } catch (err) {
-            setError('Failed to stop worker');
-        }
-    };
-
     return (
-        <div className="space-y-6">
-            <Card>
-                <CardHeader className="flex flex-row items-center justify-between">
-                    <CardTitle>Active Workers</CardTitle>
-                    <button
-                        onClick={() => setShowNewWorkerForm(true)}
-                        className="inline-flex items-center px-3 py-1 bg-blue-500 text-white rounded-md hover:bg-blue-600"
-                    >
-                        <Plus className="w-4 h-4 mr-2" />
-                        Add Worker
-                    </button>
-                </CardHeader>
-                <CardContent>
-                    {error && (
-                        <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-md flex items-center">
-                            <AlertCircle className="w-4 h-4 mr-2" />
-                            {error}
-                        </div>
-                    )}
+        <Card className="bg-[#18181b] border-[#3f3f46]">
+            <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="text-white">Active Workers</CardTitle>
+                <button
+                    onClick={() => setShowNewWorkerForm(true)}
+                    className="inline-flex items-center px-3 py-1.5 bg-[#ec4899] text-white rounded-md hover:bg-[#ec4899]/90"
+                >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Worker
+                </button>
+            </CardHeader>
+            <CardContent>
+                {error && (
+                    <div className="mb-4 p-3 bg-red-900/20 text-red-400 rounded-md flex items-center border border-red-800">
+                        <AlertCircle className="w-4 h-4 mr-2" />
+                        {error}
+                    </div>
+                )}
 
-                    {showNewWorkerForm && (
-                        <Card className="mb-4 bg-gray-50">
-                            <CardContent className="p-4">
-                                <div className="flex justify-between items-center mb-4">
-                                    <h4 className="font-medium">New Worker Configuration</h4>
-                                    <button
-                                        onClick={() => setShowNewWorkerForm(false)}
-                                        className="text-gray-500 hover:text-gray-700"
-                                    >
-                                        <X className="w-4 h-4" />
-                                    </button>
+                {showNewWorkerForm && (
+                    <Card className="mb-4 bg-[#1f1f23] border-[#3f3f46]">
+                        <CardContent className="p-4">
+                            <div className="flex justify-between items-center mb-4">
+                                <h4 className="font-medium text-white">New Worker Configuration</h4>
+                                <button
+                                    onClick={() => setShowNewWorkerForm(false)}
+                                    className="text-gray-400 hover:text-white"
+                                >
+                                    <X className="w-4 h-4" />
+                                </button>
+                            </div>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className={labelClassName}>
+                                        Pool Size
+                                    </label>
+                                    <input
+                                        type="number"
+                                        value={poolSize}
+                                        onChange={(e) => setPoolSize(Number(e.target.value))}
+                                        className={inputClassName}
+                                    />
                                 </div>
-                                <div className="space-y-4">
+                                <div>
+                                    <label className="flex items-center space-x-2 text-gray-200">
+                                        <input
+                                            type="checkbox"
+                                            checked={enableSteal}
+                                            onChange={(e) => setEnableSteal(e.target.checked)}
+                                            className="rounded bg-[#27272a] border-[#3f3f46] text-[#ec4899] focus:ring-[#ec4899]"
+                                        />
+                                        <span className="text-sm font-medium">Enable Task Stealing</span>
+                                    </label>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label className="block text-sm font-medium mb-1">
-                                            Pool Size
+                                        <label className={labelClassName}>
+                                            Min Workers
                                         </label>
                                         <input
                                             type="number"
-                                            value={poolSize}
-                                            onChange={(e) => setPoolSize(Number(e.target.value))}
-                                            className="w-full p-2 border rounded-md"
+                                            value={minWorkers}
+                                            onChange={(e) => setMinWorkers(Number(e.target.value))}
+                                            className={inputClassName}
                                         />
                                     </div>
                                     <div>
-                                        <label className="flex items-center space-x-2">
-                                            <input
-                                                type="checkbox"
-                                                checked={enableSteal}
-                                                onChange={(e) => setEnableSteal(e.target.checked)}
-                                                className="rounded"
-                                            />
-                                            <span className="text-sm font-medium">Enable Task Stealing</span>
+                                        <label className={labelClassName}>
+                                            Max Workers
                                         </label>
+                                        <input
+                                            type="number"
+                                            value={maxWorkers}
+                                            onChange={(e) => setMaxWorkers(Number(e.target.value))}
+                                            className={inputClassName}
+                                        />
                                     </div>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="block text-sm font-medium mb-1">
-                                                Min Workers
-                                            </label>
-                                            <input
-                                                type="number"
-                                                value={minWorkers}
-                                                onChange={(e) => setMinWorkers(Number(e.target.value))}
-                                                className="w-full p-2 border rounded-md"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium mb-1">
-                                                Max Workers
-                                            </label>
-                                            <input
-                                                type="number"
-                                                value={maxWorkers}
-                                                onChange={(e) => setMaxWorkers(Number(e.target.value))}
-                                                className="w-full p-2 border rounded-md"
-                                            />
-                                        </div>
+                                </div>
+                                <button
+                                    onClick={startWorker}
+                                    className="w-full py-2 px-4 bg-[#ec4899] text-white rounded-md hover:bg-[#ec4899]/90 transition-colors"
+                                >
+                                    Start Worker
+                                </button>
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {Object.entries(workers).map(([id, worker]) => (
+                        <Card key={id} className="bg-[#1f1f23] border-[#3f3f46]">
+                            <CardContent className="p-4">
+                                <div className="flex justify-between items-center mb-2">
+                                    <span className="font-medium text-white">Worker {id.slice(0, 8)}</span>
+                                    <span className={`px-2 py-1 rounded-full text-xs ${
+                                        worker.status === 'active'
+                                            ? 'bg-green-900/20 text-green-400 border border-green-800'
+                                            : 'bg-yellow-900/20 text-yellow-400 border border-yellow-800'
+                                    }`}>
+                                        {worker.status}
+                                    </span>
+                                </div>
+                                <div className="space-y-1 text-sm text-gray-300">
+                                    <div className="flex justify-between">
+                                        <span>Tasks Processed:</span>
+                                        <span>{worker.tasksProcessed}</span>
                                     </div>
-                                    <button
-                                        onClick={startWorker}
-                                        className="w-full py-2 px-4 bg-blue-500 text-white rounded-md hover:bg-blue-600"
-                                    >
-                                        Start Worker
-                                    </button>
+                                    <div className="flex justify-between">
+                                        <span>Active Tasks:</span>
+                                        <span>{worker.activeTasks}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span>Last Seen:</span>
+                                        <span>{new Date(worker.lastSeen).toLocaleTimeString()}</span>
+                                    </div>
                                 </div>
                             </CardContent>
                         </Card>
-                    )}
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {Object.entries(workers).map(([id, worker]) => (
-                            <Card key={id} className="bg-gray-50">
-                                <CardContent className="p-4">
-                                    <div className="flex justify-between items-center mb-2">
-                                        <span className="font-medium">Worker {id.slice(0, 8)}</span>
-                                        <div className="flex items-center space-x-2">
-                                            <span className={`px-2 py-1 rounded-full text-xs ${
-                                                worker.status === 'active'
-                                                    ? 'bg-green-100 text-green-800'
-                                                    : 'bg-yellow-100 text-yellow-800'
-                                            }`}>
-                                                {worker.status}
-                                            </span>
-                                            <button
-                                                onClick={() => stopWorker(id)}
-                                                className="p-1 hover:bg-gray-200 rounded"
-                                            >
-                                                <X className="w-4 h-4 text-red-500" />
-                                            </button>
-                                        </div>
-                                    </div>
-                                    <div className="space-y-1 text-sm">
-                                        <div className="flex justify-between">
-                                            <span>Tasks Processed:</span>
-                                            <span>{worker.tasksProcessed}</span>
-                                        </div>
-                                        <div className="flex justify-between">
-                                            <span>Active Tasks:</span>
-                                            <span>{worker.activeTasks}</span>
-                                        </div>
-                                        <div className="flex justify-between">
-                                            <span>Last Seen:</span>
-                                            <span>{new Date(worker.lastSeen).toLocaleTimeString()}</span>
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        ))}
-                    </div>
-                </CardContent>
-            </Card>
-        </div>
+                    ))}
+                </div>
+            </CardContent>
+        </Card>
     );
 }

@@ -5,14 +5,38 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
-  --task-highlight: #3b82f6; /* blue for light mode */
+  --card-background: #ffffff;
+  --card-foreground: #171717;
+  --muted-background: #f3f4f6;
+  --muted-foreground: #6b7280;
+  --task-highlight: #3b82f6;
+  --input-background: #ffffff;
+  --input-border: #e5e7eb;
+  --input-foreground: #171717;
+  --button-background: #3b82f6;
+  --button-foreground: #ffffff;
+  --success: #10b981;
+  --error: #ef4444;
+  --warning: #f59e0b;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
     --foreground: #ededed;
-    --task-highlight: #ec4899; /* pink for dark mode */
+    --card-background: #18181b;
+    --card-foreground: #ededed;
+    --muted-background: #27272a;
+    --muted-foreground: #a1a1aa;
+    --task-highlight: #ec4899;
+    --input-background: #27272a;
+    --input-border: #3f3f46;
+    --input-foreground: #ededed;
+    --button-background: #ec4899;
+    --button-foreground: #ededed;
+    --success: #10b981;
+    --error: #ef4444;
+    --warning: #f59e0b;
   }
 }
 

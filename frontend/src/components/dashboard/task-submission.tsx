@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, Pen, Camera } from 'lucide-react';
 
 interface TaskSubmissionFormProps {
     onSuccess?: () => void;
@@ -14,8 +14,6 @@ export function TaskSubmissionForm({ onSuccess }: TaskSubmissionFormProps) {
     const [payload, setPayload] = useState('');
     const [error, setError] = useState<string | null>(null);
     const [submitting, setSubmitting] = useState(false);
-    const [taskId, setTaskId] = useState<string | null>(null);
-    const [taskStatus, setTaskStatus] = useState<any | null>(null);
 
     const submitTask = async () => {
         setSubmitting(true);
@@ -40,12 +38,13 @@ export function TaskSubmissionForm({ onSuccess }: TaskSubmissionFormProps) {
                 throw new Error('Failed to submit task');
             }
 
-            const result = await response.json();
-            setTaskId(result.taskId);
             onSuccess?.();
-
-            // Start polling for task status
-            pollTaskStatus(result.taskId);
+            // Reset form
+            setPriority(5);
+            setDeadline('');
+            setRetries(3);
+            setTaskType('test');
+            setPayload('');
         } catch (err) {
             setError('Failed to submit task');
         } finally {
@@ -53,41 +52,17 @@ export function TaskSubmissionForm({ onSuccess }: TaskSubmissionFormProps) {
         }
     };
 
-    const pollTaskStatus = async (id: string) => {
-        const checkStatus = async () => {
-            try {
-                const response = await fetch(`http://localhost:8080/api/tasks/status?id=${id}`);
-                if (response.ok) {
-                    const status = await response.json();
-                    setTaskStatus(status);
-                    if (status.status === 'completed' || status.status === 'failed') {
-                        return true;
-                    }
-                }
-                return false;
-            } catch (err) {
-                return false;
-            }
-        };
-
-        const poll = async () => {
-            const isComplete = await checkStatus();
-            if (!isComplete) {
-                setTimeout(poll, 1000);
-            }
-        };
-
-        poll();
-    };
+    const inputClassName = "w-full p-2 rounded-md bg-[#27272a] text-white border border-[#3f3f46] focus:outline-none focus:border-[#ec4899] focus:ring-1 focus:ring-[#ec4899]";
+    const labelClassName = "block text-sm font-medium mb-1 text-gray-200";
 
     return (
-        <Card>
+        <Card className="bg-[#18181b] border-[#3f3f46]">
             <CardHeader>
-                <CardTitle>Submit New Task</CardTitle>
+                <CardTitle className="text-white">Submit New Task</CardTitle>
             </CardHeader>
             <CardContent>
                 {error && (
-                    <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-md flex items-center">
+                    <div className="mb-4 p-3 bg-red-900/20 text-red-400 rounded-md flex items-center border border-red-800">
                         <AlertCircle className="w-4 h-4 mr-2" />
                         {error}
                     </div>
@@ -95,7 +70,7 @@ export function TaskSubmissionForm({ onSuccess }: TaskSubmissionFormProps) {
 
                 <div className="space-y-4">
                     <div>
-                        <label className="block text-sm font-medium mb-1">
+                        <label className={labelClassName}>
                             Priority (1-10)
                         </label>
                         <input
@@ -104,24 +79,24 @@ export function TaskSubmissionForm({ onSuccess }: TaskSubmissionFormProps) {
                             max="10"
                             value={priority}
                             onChange={(e) => setPriority(Number(e.target.value))}
-                            className="w-full p-2 border rounded-md"
+                            className={inputClassName}
                         />
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium mb-1">
+                        <label className={labelClassName}>
                             Deadline (optional)
                         </label>
                         <input
                             type="datetime-local"
                             value={deadline}
                             onChange={(e) => setDeadline(e.target.value)}
-                            className="w-full p-2 border rounded-md"
+                            className={inputClassName}
                         />
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium mb-1">
+                        <label className={labelClassName}>
                             Max Retries
                         </label>
                         <input
@@ -129,85 +104,51 @@ export function TaskSubmissionForm({ onSuccess }: TaskSubmissionFormProps) {
                             min="0"
                             value={retries}
                             onChange={(e) => setRetries(Number(e.target.value))}
-                            className="w-full p-2 border rounded-md"
+                            className={inputClassName}
                         />
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium mb-1">
+                        <label className={labelClassName}>
                             Task Type
                         </label>
                         <input
                             type="text"
                             value={taskType}
                             onChange={(e) => setTaskType(e.target.value)}
-                            className="w-full p-2 border rounded-md"
+                            className={inputClassName}
                         />
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium mb-1">
+                        <label className={labelClassName}>
                             Payload
                         </label>
-                        <textarea
-                            value={payload}
-                            onChange={(e) => setPayload(e.target.value)}
-                            className="w-full p-2 border rounded-md h-24"
-                            placeholder="Enter task data..."
-                        />
+                        <div className="relative">
+                            <textarea
+                                value={payload}
+                                onChange={(e) => setPayload(e.target.value)}
+                                className={`${inputClassName} h-24 resize-none`}
+                                placeholder="Enter task data..."
+                            />
+                            <div className="absolute bottom-2 right-2 flex space-x-2">
+                                <button className="p-1.5 rounded bg-[#3f3f46] hover:bg-[#52525b] text-white">
+                                    <Pen className="w-4 h-4" />
+                                </button>
+                                <button className="p-1.5 rounded bg-[#3f3f46] hover:bg-[#52525b] text-white">
+                                    <Camera className="w-4 h-4" />
+                                </button>
+                            </div>
+                        </div>
                     </div>
 
                     <button
                         onClick={submitTask}
                         disabled={submitting}
-                        className="w-full py-2 px-4 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:bg-blue-300"
+                        className="w-full py-2 px-4 bg-[#ec4899] text-white rounded-md hover:bg-[#ec4899]/90 disabled:bg-[#ec4899]/50 transition-colors"
                     >
                         {submitting ? 'Submitting...' : 'Submit Task'}
                     </button>
-
-                    {taskId && (
-                        <div className="mt-4 p-4 bg-gray-50 rounded-md">
-                            <h4 className="font-medium mb-2">Task Status</h4>
-                            <div className="text-sm">
-                                <div className="flex justify-between mb-1">
-                                    <span>Task ID:</span>
-                                    <span className="font-mono">{taskId}</span>
-                                </div>
-                                {taskStatus && (
-                                    <>
-                                        <div className="flex justify-between mb-1">
-                                            <span>Status:</span>
-                                            <span className={
-                                                taskStatus.status === 'completed'
-                                                    ? 'text-green-600'
-                                                    : taskStatus.status === 'failed'
-                                                        ? 'text-red-600'
-                                                        : 'text-blue-600'
-                                            }>
-                                                {taskStatus.status}
-                                            </span>
-                                        </div>
-                                        {taskStatus.result && (
-                                            <div className="mt-2 p-2 bg-gray-100 rounded">
-                                                <div className="font-medium mb-1">Result:</div>
-                                                <pre className="text-xs overflow-auto">
-                                                    {JSON.stringify(taskStatus.result, null, 2)}
-                                                </pre>
-                                            </div>
-                                        )}
-                                        {taskStatus.error && (
-                                            <div className="mt-2 p-2 bg-red-50 text-red-700 rounded">
-                                                <div className="font-medium mb-1">Error:</div>
-                                                <pre className="text-xs overflow-auto">
-                                                    {taskStatus.error}
-                                                </pre>
-                                            </div>
-                                        )}
-                                    </>
-                                )}
-                            </div>
-                        </div>
-                    )}
                 </div>
             </CardContent>
         </Card>

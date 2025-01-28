@@ -86,7 +86,7 @@ go run main.go -redis localhost:6379 -port 8080
 
 ### 3. Start Frontend
 ```bash
-cd ./frontend
+cd .\frontend\
 
 npm run dev
 ```
